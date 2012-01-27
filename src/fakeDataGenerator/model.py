@@ -23,6 +23,7 @@ class Node:
         Paramters:
             inputs - Iterable containing Node objects that feed into this one.
                      They will be updated to point to this object by this initializer.
+                     None becomes the empty list.
             name - String to label this Node.
             applyFxn - Operation this node is to perform. Can be updated
                        later via the variable name "fxn".
@@ -30,7 +31,10 @@ class Node:
                                   up only in column output, not fed to other nodes.
         """
         self.name = name
-        self._inputs = [foo._addOut(self) for foo in inputs]
+        if inputs:
+            self._inputs = [foo._addOut(self) for foo in inputs]
+        else:
+            self._inputs = []
         self.fxn = applyFxn
         self.noiseFxn = noiseFxn
         self._outputs = []
@@ -43,6 +47,20 @@ class Node:
         """
         self._outputs.append(newOutNode)
         return self
+        
+    def addEdge(self, destination):
+        destination._inputs.append(self)
+        self._outputs.append(destination)
+        return self
+        
+    def removeEdge(self, unDestination):
+        try:
+            self._outputs.remove(unDestination)
+        except ValueError:
+            return False
+        unDestination._inputs.remove(self)
+        return True
+        
         
     def calculate(self, cacheKey):
         """
@@ -84,6 +102,26 @@ class Node:
         return "Node: " + self.name + "- from " + \
             ",".join((foo.name for foo in self._inputs)) + \
             "; into " + ",".join((foo.name for foo in self._outputs))
+    
+    def _updateReachableSingle(self):
+        self.reachableSet = set(self._outputs)
+        for dest in self._outputs:
+            self.reachableSet.update(dest.reachableSet)
+    
+    def updateReachable(self):
+        steps = 1
+        self._updateReachableSingle()
+        frontier = set(self._inputs)
+        while frontier:
+            nextSet = set()
+            for element in frontier:
+                element._updateReachableSingle()
+                steps += 1
+                nextSet.update(element._inputs)
+            frontier = nextSet
+        return steps
+        
+        
 
 def graphvizEntireThing(headNodes):
     unprocessedNodes = set()
@@ -224,6 +262,103 @@ def decliningUsageRateGraph(sources, graphSize, rawArityList):
 def limitedSplayGraph(sources, graphSize, rawArityList):
     return rejectableGraph(sources, graphSize, rawArityList, kickoutCombo)
 
+def IdeCozmanShuffle(sourceLow, sourceHigh, inMax, graphSize, iterations=None):
+    '''An implementation of Jaime S. Ide and Fabio G. Cozman's Markov
+    algorithm for uniform generation of Bayesian networks,
+    modified to restrict the space to the constraints we need.'''
+    if iterations is None:
+        iterations = graphSize * graphSize
+    
+    nodes = []
+    roots = []
+    
+    #build list-shaped graph with random sources linked in
+    
+    for q in range(graphSize - sourceLow + 1):
+        reachableSet = set(nodes)
+        nodes.append(Node(None, str(q), identity))
+        if len(nodes) > 1:
+            nodes[-1].addEdge(nodes[-2])
+        nodes[-1].reachableSet = reachableSet
+    
+    roots.append(nodes[-1])
+    
+    while len(roots) < sourceLow:
+        roots.append(Node(None, str(len(nodes)), identity))
+        foo = nodes[random.randint(0, len(roots) - 1)]
+        while not foo._inputs:    
+            foo = nodes[random.randint(0, len(roots) - 1)]
+        roots[-1].addEdge(foo)
+        nodes.append(roots[-1])
+        roots[-1].updateReachable()
+        
+    
+    #N times:
+    for q in range(iterations):
+        #try removing something
+        source = nodes[random.randint(0, len(nodes) - 1)]
+        dest = source
+        while dest == source:
+            dest = nodes[random.randint(0, len(nodes) - 1)]
+
+        if len(dest._inputs) != 1 or len(roots) < sourceHigh:
+                #prevents tryCut call if this would go over the source limit 
+            if tryCut(source, dest) and not dest._inputs:
+                roots.append(dest)
+
+        #try adding something
+        source = nodes[random.randint(0, len(nodes) - 1)]
+        dest = source
+        while dest == source:
+            dest = nodes[random.randint(0, len(nodes) - 1)]
+            
+        if (dest._inputs or len(roots) > sourceLow) and len(dest._inputs) < inMax:
+            if tryAdd(source, dest) and len(dest._inputs) == 1:
+                roots.remove(dest) #slow... consider alternate data structure
+        
+    return roots
+
+def isConnected(source, dest, skipLinks = set()):
+    done = set()
+    frontier = set([source])
+    while frontier:
+        thing = frontier.pop()
+        done.add(thing)
+        for path in thing._outputs:
+            if (thing, path) in skipLinks:
+                continue
+            if path == dest:
+                return True
+            if path in done:
+                continue
+            frontier.add(path)
+        for path in thing._inputs:
+            if (path, thing) in skipLinks:
+                continue
+            if path == dest:
+                return True
+            if path in done:
+                continue
+            frontier.add(path)
+    return False
+
+def tryCut(source, dest):
+    if not isConnected(source, dest, set([(source, dest)])):
+        return False
+    if source.removeEdge(dest):
+        source.updateReachable()
+        return True
+    return False
+    
+def tryAdd(source, dest):
+    if source in dest.reachableSet:
+        return False
+    if dest in source._outputs:
+        return False
+    if source.addEdge(dest):
+        source.updateReachable()
+    return True
+
 def rejectableGraph(sources, graphSize, rawArityList, acceptFxn):
     bucket = []
     sourceNodes = []
@@ -250,5 +385,8 @@ def rejectableGraph(sources, graphSize, rawArityList, acceptFxn):
 ARITY_LIST = [0.25, 0.5, 0.75, 1.0]
 
 if __name__ == "__main__":
-    print graphvizEntireThing(limitedSplayGraph(int(sys.argv[2]), int(sys.argv[1]), ARITY_LIST))
+    #print graphvizEntireThing(limitedSplayGraph(int(sys.argv[2]), int(sys.argv[1]), ARITY_LIST))
+    sourceNum = int(sys.argv[2])
+    graphSize = int(sys.argv[1])
+    print graphvizEntireThing(IdeCozmanShuffle(sourceNum, sourceNum * 2, len(ARITY_LIST), graphSize))
         
