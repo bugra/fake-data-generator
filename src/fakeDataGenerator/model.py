@@ -7,6 +7,7 @@ from __future__ import division
 
 import random
 import sys
+import yapsy
 
 def identity(x):
     return x
@@ -142,125 +143,7 @@ def graphvizEntireThing(headNodes):
     
     return " ".join(statements)
 
-def shuffle(shuffleMe):
-    for x in range(0, len(shuffleMe)):
-        grab = random.randrange(x, len(shuffleMe))
-        temp = shuffleMe[x]
-        shuffleMe[x] = shuffleMe[grab]
-        shuffleMe[grab] = temp
 
-def lateShuffleRandomGraph(sources, graphSize, arityList):
-    x = 0;
-    deck = []
-    sourceNodes = []
-    while x < sources:
-        foo = Node([], str(x), identity)
-        deck.append(foo)
-        sourceNodes.append(foo)
-        x += 1
-    discardPile = []
-    shuffle(deck)
-    while x < graphSize:
-        arityRand = random.random()
-        arity = 0
-        while arityRand > arityList[arity]:
-            arity += 1
-        arity += 1
-        thingie = []
-        for q in range(0, arity):
-            if not deck:
-                deck = discardPile
-                shuffle(deck)
-                discardPile = []
-            foo = deck.pop()
-            thingie.append(foo)
-            discardPile.append(foo)
-        node = Node(thingie, str(x), identity)
-        deck.append(node)
-        shuffle(deck)   
-        x += 1
-    return sourceNodes
-
-ROOT_SENTINEL = Node([], "ROOT-SENTINEL!NOT-A-NODE", identity)
-
-class SearchState:
-    """
-    Represents the state of searching through parents of one node.
-    Used only for parentdistance.
-    """
-    def __init__(self, singleNode, bit, goal):
-        self.zone = set()
-        self.zone.add(singleNode)
-        self.frontier = set()
-        self.frontier.add(singleNode)
-        self.mask = 1 << bit
-        self.goal = 2 ** goal - 1
-    
-    def generationZero(self, nodeTable):
-        for oneNode in self.frontier:
-            if oneNode not in nodeTable:
-                nodeTable[oneNode] = self.mask;
-            else:
-                nodeTable[oneNode] |= self.mask;
-            if nodeTable[oneNode] & self.goal == self.goal:
-                return True
-        return False
-        
-    def relaxAndCheck(self, nodeTable):
-        neoFrontier = set()
-        win = False
-        for node in self.frontier:
-            runMe = node._inputs
-            if not node._inputs:
-                #ha, ha, you have no parents orphan boy
-                runMe = [ROOT_SENTINEL]
-            for upwards in runMe:
-                if upwards not in self.zone:
-                    self.zone.add(upwards)
-                    neoFrontier.add(upwards)
-                    if upwards not in nodeTable:
-                        nodeTable[upwards] = 0
-                    nodeTable[upwards] |= self.mask
-                    if nodeTable[upwards] & self.goal == self.goal:
-                        win = True
-        self.frontier = neoFrontier
-        return win;
-
-def parentdistance(nodes):
-    searchers = []
-    scoreboard = {}
-    for x in enumerate(nodes):
-        searchers.append(SearchState(x[1], x[0], len(nodes)))
-    
-    for state in searchers:
-        if state.generationZero(scoreboard):
-            return 0
-    generation = 1
-    while True:
-        for state in searchers:
-            if state.relaxAndCheck(scoreboard):
-                return generation
-        generation += 1
-
-def overutilization_factory(rate):
-    def overutilization(node, ignored):
-        return 1.0 / (rate ** len(node._outputs))
-    return overutilization
-
-def parentdistance_reformulated(node, moreNodes):
-    inputThing = [node]
-    inputThing.extend(moreNodes)
-    return 1.0 / (2 ** parentdistance(inputThing))    
-
-kickout_overutil = overutilization_factory(4)
-def kickoutCombo(node, moreNodes):
-    return kickout_overutil(node, moreNodes) * parentdistance_reformulated(node, moreNodes)
-
-def decliningUsageRateGraph(sources, graphSize, rawArityList):
-    return rejectableGraph(sources, graphSize, rawArityList, overutilization_factory(2))
-
-def limitedSplayGraph(sources, graphSize, rawArityList):
-    return rejectableGraph(sources, graphSize, rawArityList, kickoutCombo)
 
 def IdeCozmanShuffle(sourceLow, sourceHigh, inMax, graphSize, iterations=None):
     '''An implementation of Jaime S. Ide and Fabio G. Cozman's Markov
@@ -359,28 +242,115 @@ def tryAdd(source, dest):
         source.updateReachable()
     return True
 
-def rejectableGraph(sources, graphSize, rawArityList, acceptFxn):
-    bucket = []
-    sourceNodes = []
-    arityList = [0.0]
-    arityList.extend(rawArityList)
-    for x in range(0, sources):
-        raw = Node([], str(x), identity)
-        sourceNodes.append(raw)
-    bucket.extend(sourceNodes)
-    for x in range(len(sourceNodes), graphSize):
-        nodeInputs = []
-        arityRand = random.random()
-        arity = 0
-        while arityRand > arityList[arity]:
-            arity += 1
-            candidate = bucket[random.randrange(0, len(bucket))]
-            while candidate in nodeInputs or acceptFxn(candidate, nodeInputs) < random.random():
-                candidate = bucket[random.randrange(0, len(bucket))]
-            nodeInputs.append(candidate)
-        raw = Node(nodeInputs, str(x), identity)
-        bucket.append(raw)
-    return sourceNodes
+class IModelBehavior(yapsy.IPlugin):
+    #TODO: DOCUMENT!!!!!!
+    @property
+    def arity(self):
+        """Must be a field-like that contains a 2-element sequence.
+        [0] is minimum number of parameters to calculate.
+        [1] is maximum number of parameters to calculate, or None for unlimited.
+        """
+        raise NotImplemented("ModelBehaviorPlugin is abstract and all its plugin hooks must be overridden.")
+    
+    @property
+    def is_noise(self):
+        """Must be a field-like that can be used as a boolean:
+        True (or evaluates as true)- function is a 1-ary function suitable for use as a scramble function.
+        False (or evaluates as false)- anything else.
+        """
+        raise NotImplemented("ModelBehaviorPlugin is abstract and all its plugin hooks must be overridden.")
+    
+    def calculate(self, *args):
+        """The operation that this function should implement.
+        Must take some number of unnamed args- specifically, any number in the range specified by arity.
+        This will be dereferenced directly once per node, and then blindly used later.
+        Thus, strange getattr tricks to actually secretly call a closure that gives
+        random variations on the function are encouraged if appropriate.
+        """
+        raise NotImplemented("ModelBehaviorPlugin is abstract and all its plugin hooks must be overridden.")
+
+    @classmethod
+    def implementations(cls, paths):
+        """Return an iterable of plugin-info for every locatable implementation of this interface.
+        """
+        manager = yapsy.PluginManager()
+        manager.setPluginPlaces(paths)
+        manager.setCategoriesFilter({
+            "ModelBehavior" : IModelBehavior,                         
+            })
+        manager.collectPlugins()
+        return manager.getPluginsOfCategory("ModelBehavior")
+    
+def extendFunctionLookup(listlist, nonElimFxns, newMax):
+    if len(listlist) > newMax:
+        dupe = [fxn for fxn in nonElimFxns]
+        return dupe
+    newLen = newMax + 1
+    low = len(listlist)
+    while len(listlist) < newLen:
+        listlist.append([])
+    remainingFxns = []
+    for fxn in nonElimFxns:
+        if fxn.arity[1] < low:
+            pass
+        if fxn.arity[1] > newMax:
+            remainingFxns.append(fxn)
+        for x in range(max(low, fxn.arity[0]), min(newLen, fxn.arity[1] + 1)):
+            listlist[x].append(fxn)
+    return remainingFxns
+    
+class IdentityBehavior(IModelBehavior):
+    arity = (1, 1)
+    is_noise = True
+    def calculate(self, oneArg):
+        return oneArg    
+    
+def randomElement(ls):
+    dex = random.randint(len(ls))
+    return ls[dex]     
+
+DEFAULT_ARITY_MAX = 4
+    
+def workingModelFromPygraph(graph, fxns, bonus_identity = 0):
+    # generate collection of functions at each arity up to 4. extend later as needed
+    noise = [fxn for fxn in fxns if fxn.is_noise]
+    for x in range(0, bonus_identity):
+        noise.append(IdentityBehavior())
+        
+    arityTable = []
+    fxns = extendFunctionLookup(arityTable, fxns, DEFAULT_ARITY_MAX)
+    #dependency-order traversal
+    cleared = set()
+    zeroAry = [node for node in graph.nodes() if not graph.incidents(node)]
+    frontier = set(zeroAry)
+    labelsToModelNodes = {}
+    
+    def drawAppropriateFxn(forThisLabel):
+        arity = len(graph.incidents(forThisLabel))
+        #NEXT UP: check arityTable length, grab random, raise if too short
+        if len(arityTable) < arity:
+            fxns = extendFunctionLookup(arityTable, fxns, arity)
+        
+        valids = arityTable[arity]
+        
+        if not valids:
+            raise ValueError("There exists a node for which no function exists- no {0}-ary functions: {1}".format(arity, forThisLabel))
+        
+        return randomElement(valids)
+    
+    while frontier:
+        nextNode = frontier.pop()
+        cleared.add(nextNode)
+        foo = Node((labelsToModelNodes[incoming] for incoming in graph.incidents(nextNode)),
+                   nextNode,
+                   drawAppropriateFxn(nextNode),
+                   randomElement(noise))
+        labelsToModelNodes[nextNode] = foo
+        for child in graph.neighbors(nextNode):
+            if(cleared.issuperset(graph.incidents(child))):
+                frontier.add(child)
+    
+    return labelsToModelNodes.values(), zeroAry
 
 ARITY_LIST = [0.25, 0.5, 0.75, 1.0]
 
