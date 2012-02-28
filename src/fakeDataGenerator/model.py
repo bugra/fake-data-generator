@@ -6,8 +6,10 @@ Created on Dec 21, 2011
 from __future__ import division
 
 import random
-import sys
 import yapsy
+from yapsy.IPlugin import IPlugin
+
+NAME_RECURSION_DEPTH = 3 #todo: replace references to this with a config lookup
 
 def identity(x):
     return x
@@ -26,9 +28,9 @@ class Node:
                      They will be updated to point to this object by this initializer.
                      None becomes the empty list.
             name - String to label this Node.
-            applyFxn - Operation this node is to perform. Can be updated
+            applyFxn - IModelBehavior this node is to perform. Can be updated
                        later via the variable name "fxn".
-            noiseFxn (optional) - 1-ary function to add noise that shows
+            noiseFxn (optional) - 1-ary IModelBehavior to add noise that shows
                                   up only in column output, not fed to other nodes.
         """
         self.name = name
@@ -74,7 +76,7 @@ class Node:
             results = []
             for node in self._inputs:
                 results.append(node.calculate)
-            self._resultConsistencyCache[cacheKey] = self.fxn(*results)
+            self._resultConsistencyCache[cacheKey] = self.fxn.calculate(*results)
         return self._resultConsistencyCache[cacheKey]
     
     def columnValue(self, cacheKey):
@@ -83,18 +85,33 @@ class Node:
         then modify the value before returning it to add noise based on the noise function,
         if any was provided. Noise is not cached, so this may vary with multiple invocations.
         """
-        return self.noiseFxn(self.calculate(cacheKey))
+        return self.noiseFxn.calculate(self.calculate(cacheKey))
+    
+    def genName(self, remainingRecursion):
+        """Generates a friendly name based on what the operation is.
+        remainingRecursion is how deeply it should nest names; beyond that, symbolic IDs are used."""
+        if remainingRecursion <= 0:
+            return self.name
+        if not self._inputs:
+            #special case: source
+            if remainingRecursion == NAME_RECURSION_DEPTH:
+                return self.fxn.generate_name()
+            else:
+                return self.name
+        rNext = remainingRecursion - 1
+        supernames = ["({0})".format(foo.genName(rNext)) for foo in self._inputs]
+        return self.fxn.generate_name(*supernames)
     
     def toGraphViz(self):
         """
         Returns a String that can be used as part of a GraphViz data file.
-        Represents all the in-connections to the node.
+        Represents all the in-connections to the node. Labels node with generated names.
         """
-        statements = [self.name]
+        statements = ['"{0}:{1}"'.format(self.name, self.genName(NAME_RECURSION_DEPTH))]
         for nodeFrom in self._inputs:
             statements.append(nodeFrom.name + "->" + self.name)
         statements.append("")
-        return "; ".join(statements);
+        return "; ".join(statements)
     
     def __str__(self):
         """
@@ -145,104 +162,9 @@ def graphvizEntireThing(headNodes):
 
 
 
-def IdeCozmanShuffle(sourceLow, sourceHigh, inMax, graphSize, iterations=None):
-    '''An implementation of Jaime S. Ide and Fabio G. Cozman's Markov
-    algorithm for uniform generation of Bayesian networks,
-    modified to restrict the space to the constraints we need.'''
-    if iterations is None:
-        iterations = graphSize * graphSize
-    
-    nodes = []
-    roots = []
-    
-    #build list-shaped graph with random sources linked in
-    
-    for q in range(graphSize - sourceLow + 1):
-        reachableSet = set(nodes)
-        nodes.append(Node(None, str(q), identity))
-        if len(nodes) > 1:
-            nodes[-1].addEdge(nodes[-2])
-        nodes[-1].reachableSet = reachableSet
-    
-    roots.append(nodes[-1])
-    
-    while len(roots) < sourceLow:
-        roots.append(Node(None, str(len(nodes)), identity))
-        foo = nodes[random.randint(0, len(roots) - 1)]
-        while not foo._inputs:    
-            foo = nodes[random.randint(0, len(roots) - 1)]
-        roots[-1].addEdge(foo)
-        nodes.append(roots[-1])
-        roots[-1].updateReachable()
-        
-    
-    #N times:
-    for q in range(iterations):
-        #try removing something
-        source = nodes[random.randint(0, len(nodes) - 1)]
-        dest = source
-        while dest == source:
-            dest = nodes[random.randint(0, len(nodes) - 1)]
 
-        if len(dest._inputs) != 1 or len(roots) < sourceHigh:
-                #prevents tryCut call if this would go over the source limit 
-            if tryCut(source, dest) and not dest._inputs:
-                roots.append(dest)
 
-        #try adding something
-        source = nodes[random.randint(0, len(nodes) - 1)]
-        dest = source
-        while dest == source:
-            dest = nodes[random.randint(0, len(nodes) - 1)]
-            
-        if (dest._inputs or len(roots) > sourceLow) and len(dest._inputs) < inMax:
-            if tryAdd(source, dest) and len(dest._inputs) == 1:
-                roots.remove(dest) #slow... consider alternate data structure
-        
-    return roots
-
-def isConnected(source, dest, skipLinks = set()):
-    done = set()
-    frontier = set([source])
-    while frontier:
-        thing = frontier.pop()
-        done.add(thing)
-        for path in thing._outputs:
-            if (thing, path) in skipLinks:
-                continue
-            if path == dest:
-                return True
-            if path in done:
-                continue
-            frontier.add(path)
-        for path in thing._inputs:
-            if (path, thing) in skipLinks:
-                continue
-            if path == dest:
-                return True
-            if path in done:
-                continue
-            frontier.add(path)
-    return False
-
-def tryCut(source, dest):
-    if not isConnected(source, dest, set([(source, dest)])):
-        return False
-    if source.removeEdge(dest):
-        source.updateReachable()
-        return True
-    return False
-    
-def tryAdd(source, dest):
-    if source in dest.reachableSet:
-        return False
-    if dest in source._outputs:
-        return False
-    if source.addEdge(dest):
-        source.updateReachable()
-    return True
-
-class IModelBehavior(yapsy.IPlugin):
+class IModelBehavior(IPlugin):
     #TODO: DOCUMENT!!!!!!
     @property
     def arity(self):
@@ -268,7 +190,13 @@ class IModelBehavior(yapsy.IPlugin):
         random variations on the function are encouraged if appropriate.
         """
         raise NotImplemented("ModelBehaviorPlugin is abstract and all its plugin hooks must be overridden.")
-
+    def generate_name(self, *args):
+        """Generate a descriptive name based on the names of the parameters.
+        Must take some number of unnamed args- specifically, any number in the range specified by arity.
+        The parameters are the generated or symbolic names of previous nodes, parenthesized;
+        generate a descriptive name for this node, using those names to describe the operation.
+        Used to generate descriptive column names."""
+        raise NotImplemented("ModelBehaviorPlugin is abstract and all its plugin hooks must be overridden.")
     @classmethod
     def implementations(cls, paths):
         """Return an iterable of plugin-info for every locatable implementation of this interface.
@@ -282,6 +210,7 @@ class IModelBehavior(yapsy.IPlugin):
         return manager.getPluginsOfCategory("ModelBehavior")
     
 def extendFunctionLookup(listlist, nonElimFxns, newMax):
+    #TODO: fix to work with indefs (None as a limit)
     if len(listlist) > newMax:
         dupe = [fxn for fxn in nonElimFxns]
         return dupe
@@ -304,6 +233,8 @@ class IdentityBehavior(IModelBehavior):
     is_noise = True
     def calculate(self, oneArg):
         return oneArg    
+    def generate_name(self, oneName):
+        return oneName
     
 def randomElement(ls):
     dex = random.randint(len(ls))
@@ -312,6 +243,10 @@ def randomElement(ls):
 DEFAULT_ARITY_MAX = 4
     
 def workingModelFromPygraph(graph, fxns, bonus_identity = 0):
+    """Takes a pygraph.digraph.digraph object, an iterable of
+    IModelBehavior that lists all potential calculation functions,
+    and the number of "bonus instances" of the identity function
+    that should be thrown into the fuzzer pool."""
     # generate collection of functions at each arity up to 4. extend later as needed
     noise = [fxn for fxn in fxns if fxn.is_noise]
     for x in range(0, bonus_identity):
@@ -351,12 +286,3 @@ def workingModelFromPygraph(graph, fxns, bonus_identity = 0):
                 frontier.add(child)
     
     return labelsToModelNodes.values(), zeroAry
-
-ARITY_LIST = [0.25, 0.5, 0.75, 1.0]
-
-if __name__ == "__main__":
-    #print graphvizEntireThing(limitedSplayGraph(int(sys.argv[2]), int(sys.argv[1]), ARITY_LIST))
-    sourceNum = int(sys.argv[2])
-    graphSize = int(sys.argv[1])
-    print graphvizEntireThing(IdeCozmanShuffle(sourceNum, sourceNum * 2, len(ARITY_LIST), graphSize))
-        

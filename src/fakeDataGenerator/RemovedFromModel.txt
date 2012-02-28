@@ -145,3 +145,101 @@ def rejectableGraph(sources, graphSize, rawArityList, acceptFxn):
         raw = Node(nodeInputs, str(x), identity)
         bucket.append(raw)
     return sourceNodes
+    
+    
+    def IdeCozmanShuffle(sourceLow, sourceHigh, inMax, graphSize, iterations=None):
+    '''An implementation of Jaime S. Ide and Fabio G. Cozman's Markov
+    algorithm for uniform generation of Bayesian networks,
+    modified to restrict the space to the constraints we need.'''
+    if iterations is None:
+        iterations = graphSize * graphSize
+    
+    nodes = []
+    roots = []
+    
+    #build list-shaped graph with random sources linked in
+    
+    for q in range(graphSize - sourceLow + 1):
+        reachableSet = set(nodes)
+        nodes.append(Node(None, str(q), identity))
+        if len(nodes) > 1:
+            nodes[-1].addEdge(nodes[-2])
+        nodes[-1].reachableSet = reachableSet
+    
+    roots.append(nodes[-1])
+    
+    while len(roots) < sourceLow:
+        roots.append(Node(None, str(len(nodes)), identity))
+        foo = nodes[random.randint(0, len(roots) - 1)]
+        while not foo._inputs:    
+            foo = nodes[random.randint(0, len(roots) - 1)]
+        roots[-1].addEdge(foo)
+        nodes.append(roots[-1])
+        roots[-1].updateReachable()
+        
+    
+    #N times:
+    for q in range(iterations):
+        #try removing something
+        source = nodes[random.randint(0, len(nodes) - 1)]
+        dest = source
+        while dest == source:
+            dest = nodes[random.randint(0, len(nodes) - 1)]
+
+        if len(dest._inputs) != 1 or len(roots) < sourceHigh:
+                #prevents tryCut call if this would go over the source limit 
+            if tryCut(source, dest) and not dest._inputs:
+                roots.append(dest)
+
+        #try adding something
+        source = nodes[random.randint(0, len(nodes) - 1)]
+        dest = source
+        while dest == source:
+            dest = nodes[random.randint(0, len(nodes) - 1)]
+            
+        if (dest._inputs or len(roots) > sourceLow) and len(dest._inputs) < inMax:
+            if tryAdd(source, dest) and len(dest._inputs) == 1:
+                roots.remove(dest) #slow... consider alternate data structure
+        
+    return roots
+
+def isConnected(source, dest, skipLinks = set()):
+    done = set()
+    frontier = set([source])
+    while frontier:
+        thing = frontier.pop()
+        done.add(thing)
+        for path in thing._outputs:
+            if (thing, path) in skipLinks:
+                continue
+            if path == dest:
+                return True
+            if path in done:
+                continue
+            frontier.add(path)
+        for path in thing._inputs:
+            if (path, thing) in skipLinks:
+                continue
+            if path == dest:
+                return True
+            if path in done:
+                continue
+            frontier.add(path)
+    return False
+
+def tryCut(source, dest):
+    if not isConnected(source, dest, set([(source, dest)])):
+        return False
+    if source.removeEdge(dest):
+        source.updateReachable()
+        return True
+    return False
+    
+def tryAdd(source, dest):
+    if source in dest.reachableSet:
+        return False
+    if dest in source._outputs:
+        return False
+    if source.addEdge(dest):
+        source.updateReachable()
+    return True

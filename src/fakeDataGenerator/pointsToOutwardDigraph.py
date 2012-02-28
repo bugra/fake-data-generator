@@ -4,12 +4,13 @@ Created on Jan 27, 2012
 @author: anorberg
 '''
 from __future__ import division
-import numpy.array as ndarray
+from numpy import array as ndarray
 import math
 from scipy.spatial import Delaunay
 from pygraph.classes.digraph import digraph
 import itertools
 import yapsy
+from yapsy.IPlugin import IPlugin
 
 def euclideanDistance(twople):
     if len(twople) != 2:
@@ -59,7 +60,7 @@ def graphFromTriangulation(triang, nSeeds):
 def graphFromPoints(points, nSeeds):
     return graphFromTriangulation(Delaunay(ndarray(points)), nSeeds)
 
-class IPruneEdges(yapsy.IPlugin):
+class IPruneEdges(IPlugin):
     def prune(self, graph):
         raise NotImplemented("IPruneEdges is a plugin interface. prune MUST be overridden!")
     
