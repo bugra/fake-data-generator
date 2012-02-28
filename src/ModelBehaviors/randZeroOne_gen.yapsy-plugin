@@ -1,0 +1,10 @@
+[Core]
+name = randZeroOne_gen
+module = randZeroOne_gen
+
+[Documentation]
+website = http://www.systemsbiology.org
+version = 0.0.1
+description = randZeroOne_gen plugin for a computation in the Fake Data Generator. Form letter description not updated.
+author = Adam B. Norberg
+

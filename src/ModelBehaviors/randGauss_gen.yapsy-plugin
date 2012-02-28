@@ -1,0 +1,10 @@
+[Core]
+name = randGauss_gen
+module = randGauss_gen
+
+[Documentation]
+website = http://www.systemsbiology.org
+version = 0.0.1
+description = randGauss_gen plugin for a computation in the Fake Data Generator. Form letter description not updated.
+author = Adam B. Norberg
+

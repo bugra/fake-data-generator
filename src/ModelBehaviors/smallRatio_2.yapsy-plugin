@@ -1,0 +1,10 @@
+[Core]
+name = smallRatio_2
+module = smallRatio_2
+
+[Documentation]
+website = http://www.systemsbiology.org
+version = 0.0.1
+description = smallRatio_2 plugin for a computation in the Fake Data Generator. Form letter description not updated.
+author = Adam B. Norberg
+

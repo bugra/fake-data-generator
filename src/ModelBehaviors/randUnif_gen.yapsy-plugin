@@ -1,0 +1,10 @@
+[Core]
+name = randUnif_gen
+module = randUnif_gen
+
+[Documentation]
+website = http://www.systemsbiology.org
+version = 0.0.1
+description = randUnif_gen plugin for a computation in the Fake Data Generator. Form letter description not updated.
+author = Adam B. Norberg
+

@@ -14,7 +14,7 @@ DEST_EXT = ".yapsy-plugin"
 VERSION_NUM = "0.0.1"
 WEBSITE = "http://www.systemsbiology.org"
 AUTHOR = "Adam B. Norberg"
-DESC = "{0] plugin for a computation in the Fake Data Generator. Form letter description not updated."
+DESC = "{0} plugin for a computation in the Fake Data Generator. Form letter description not updated."
 
 if __name__ == '__main__':
     cwd = os.path.curdir

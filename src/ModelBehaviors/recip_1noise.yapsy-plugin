@@ -1,0 +1,10 @@
+[Core]
+name = recip_1noise
+module = recip_1noise
+
+[Documentation]
+website = http://www.systemsbiology.org
+version = 0.0.1
+description = recip_1noise plugin for a computation in the Fake Data Generator. Form letter description not updated.
+author = Adam B. Norberg
+
