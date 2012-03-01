@@ -7,9 +7,12 @@ from __future__ import division
 
 import random
 import yapsy
+from yapsy.PluginManager import PluginManager
+import spiralPointDistribution
+import pointsToOutwardDigraph
 from yapsy.IPlugin import IPlugin
 
-NAME_RECURSION_DEPTH = 3 #todo: replace references to this with a config lookup
+graphviz_recursion_depth = 1 #todo: replace references to this with a config lookup
 
 def identity(x):
     return x
@@ -75,7 +78,7 @@ class Node:
         if cacheKey not in self._resultConsistencyCache:
             results = []
             for node in self._inputs:
-                results.append(node.calculate)
+                results.append(node.calculate(cacheKey))
             self._resultConsistencyCache[cacheKey] = self.fxn.calculate(*results)
         return self._resultConsistencyCache[cacheKey]
     
@@ -87,19 +90,19 @@ class Node:
         """
         return self.noiseFxn.calculate(self.calculate(cacheKey))
     
-    def genName(self, remainingRecursion):
+    def genName(self, remainingRecursion, first = True):
         """Generates a friendly name based on what the operation is.
         remainingRecursion is how deeply it should nest names; beyond that, symbolic IDs are used."""
         if remainingRecursion <= 0:
             return self.name
         if not self._inputs:
             #special case: source
-            if remainingRecursion == NAME_RECURSION_DEPTH:
+            if first:
                 return self.fxn.generate_name()
             else:
                 return self.name
         rNext = remainingRecursion - 1
-        supernames = ["({0})".format(foo.genName(rNext)) for foo in self._inputs]
+        supernames = ["({0})".format(foo.genName(rNext, False)) for foo in self._inputs]
         return self.fxn.generate_name(*supernames)
     
     def toGraphViz(self):
@@ -107,9 +110,9 @@ class Node:
         Returns a String that can be used as part of a GraphViz data file.
         Represents all the in-connections to the node. Labels node with generated names.
         """
-        statements = ['"{0}:{1}"'.format(self.name, self.genName(NAME_RECURSION_DEPTH))]
+        statements = ['"{0}" [label = "{0}:{1}"]'.format(self.name, self.genName(graphviz_recursion_depth))]
         for nodeFrom in self._inputs:
-            statements.append(nodeFrom.name + "->" + self.name)
+            statements.append('"{0}"->"{1}"'.format(nodeFrom.name, self.name))
         statements.append("")
         return "; ".join(statements)
     
@@ -175,7 +178,7 @@ class IModelBehavior(IPlugin):
         raise NotImplemented("ModelBehaviorPlugin is abstract and all its plugin hooks must be overridden.")
     
     @property
-    def is_noise(self):
+    def isNoise(self):
         """Must be a field-like that can be used as a boolean:
         True (or evaluates as true)- function is a 1-ary function suitable for use as a scramble function.
         False (or evaluates as false)- anything else.
@@ -197,20 +200,21 @@ class IModelBehavior(IPlugin):
         generate a descriptive name for this node, using those names to describe the operation.
         Used to generate descriptive column names."""
         raise NotImplemented("ModelBehaviorPlugin is abstract and all its plugin hooks must be overridden.")
-    @classmethod
-    def implementations(cls, paths):
-        """Return an iterable of plugin-info for every locatable implementation of this interface.
-        """
-        manager = yapsy.PluginManager()
-        manager.setPluginPlaces(paths)
-        manager.setCategoriesFilter({
-            "ModelBehavior" : IModelBehavior,                         
-            })
-        manager.collectPlugins()
-        return manager.getPluginsOfCategory("ModelBehavior")
+    
+def modelBehaviorImplementations(paths):
+    """Return an iterable of plugin-info for every locatable implementation of this interface.
+    """
+    manager = PluginManager()
+    manager.setPluginPlaces(paths)
+    from fakeDataGenerator.model import IModelBehavior as foreignModelBehavior
+    #hey PyDev: the previous line is weird, but is actually legal
+    manager.setCategoriesFilter({
+        "ModelBehavior" : foreignModelBehavior,                         
+        })
+    manager.collectPlugins()
+    return manager.getPluginsOfCategory("ModelBehavior")
     
 def extendFunctionLookup(listlist, nonElimFxns, newMax):
-    #TODO: fix to work with indefs (None as a limit)
     if len(listlist) > newMax:
         dupe = [fxn for fxn in nonElimFxns]
         return dupe
@@ -220,11 +224,14 @@ def extendFunctionLookup(listlist, nonElimFxns, newMax):
         listlist.append([])
     remainingFxns = []
     for fxn in nonElimFxns:
-        if fxn.arity[1] < low:
-            pass
-        if fxn.arity[1] > newMax:
+        if fxn.arity[1] is not None and fxn.arity[1] < low:
+            continue
+        if fxn.arity[1] is None or fxn.arity[1] > newMax:
             remainingFxns.append(fxn)
-        for x in range(max(low, fxn.arity[0]), min(newLen, fxn.arity[1] + 1)):
+        top = newLen
+        if fxn.arity[1] is not None:
+            top = min(top, fxn.arity[1] + 1)
+        for x in range(max(low, fxn.arity[0]), top):
             listlist[x].append(fxn)
     return remainingFxns
     
@@ -237,7 +244,7 @@ class IdentityBehavior(IModelBehavior):
         return oneName
     
 def randomElement(ls):
-    dex = random.randint(len(ls))
+    dex = random.randint(0, len(ls)-1)
     return ls[dex]     
 
 DEFAULT_ARITY_MAX = 4
@@ -248,7 +255,7 @@ def workingModelFromPygraph(graph, fxns, bonus_identity = 0):
     and the number of "bonus instances" of the identity function
     that should be thrown into the fuzzer pool."""
     # generate collection of functions at each arity up to 4. extend later as needed
-    noise = [fxn for fxn in fxns if fxn.is_noise]
+    noise = [fxn for fxn in fxns if fxn.isNoise]
     for x in range(0, bonus_identity):
         noise.append(IdentityBehavior())
         
@@ -260,18 +267,25 @@ def workingModelFromPygraph(graph, fxns, bonus_identity = 0):
     frontier = set(zeroAry)
     labelsToModelNodes = {}
     
-    def drawAppropriateFxn(forThisLabel):
-        arity = len(graph.incidents(forThisLabel))
-        #NEXT UP: check arityTable length, grab random, raise if too short
-        if len(arityTable) < arity:
-            fxns = extendFunctionLookup(arityTable, fxns, arity)
+    class functionBox(object):
+        #box a closure so fxns is writebackable
+        def __init__(self, fxns):
+            self.fxns = fxns
+    
+        def drawAppropriateFxn(self, forThisLabel):
+            arity = len(graph.incidents(forThisLabel))
+            #NEXT UP: check arityTable length, grab random, raise if too short
+            if len(arityTable) <= arity:
+                self.fxns = extendFunctionLookup(arityTable, self.fxns, arity)
+            valids = arityTable[arity]
+            if not valids:
+                raise ValueError("There exists a node for which no function exists- no {0}-ary functions: {1}".format(arity, forThisLabel))
+            return randomElement(valids)
         
-        valids = arityTable[arity]
-        
-        if not valids:
-            raise ValueError("There exists a node for which no function exists- no {0}-ary functions: {1}".format(arity, forThisLabel))
-        
-        return randomElement(valids)
+        def __call__(self, forThisLabel):
+            return self.drawAppropriateFxn(forThisLabel)
+    
+    drawAppropriateFxn = functionBox(fxns)
     
     while frontier:
         nextNode = frontier.pop()
@@ -285,4 +299,44 @@ def workingModelFromPygraph(graph, fxns, bonus_identity = 0):
             if(cleared.issuperset(graph.incidents(child))):
                 frontier.add(child)
     
-    return labelsToModelNodes.values(), zeroAry
+    return labelsToModelNodes.values(), [labelsToModelNodes[nodeName] for nodeName in zeroAry]
+
+
+
+def buildRandomModel(nPoints, nSeeds, r0, delta, spread, lumpage, behaviorPaths, pruner, prunerPaths = None, bonus_identity = 3):
+    points = spiralPointDistribution.spiralPointDistribution(nPoints, nSeeds, r0, delta, spread, lumpage)
+    rawCompleteGraph = pointsToOutwardDigraph.graphFromPoints(points, nSeeds)
+    rawCompleteGraph = pointsToOutwardDigraph.friendly_rename(rawCompleteGraph)
+    if isinstance(pruner, str):
+        #TODO: fix
+        candidatePruners = pointsToOutwardDigraph.prunerImplementations(prunerPaths)
+        for pluginInfo in candidatePruners:
+            if pluginInfo.name == pruner:
+                pruner = pluginInfo.plugin_object
+                pruner.activate()
+                break
+        raise ValueError("No pruner by name {0} found in specified paths.".format(pruner))
+    trimmedGraph = pruner.prune(rawCompleteGraph)
+    
+    function_plugins =modelBehaviorImplementations(behaviorPaths)
+    functions = [plugin.plugin_object for plugin in function_plugins]
+    return workingModelFromPygraph(trimmedGraph, functions, bonus_identity)
+
+
+if __name__ == "__main__":
+    #smoke test
+    import candidate_test_pruners
+    nodes, head = buildRandomModel(50, 4, 1, 0.5, 0.3, 2, ['U:\\mercurial\\fake-data-generator\\src\\ModelBehaviors'], candidate_test_pruners.bigDelta())
+    with open("E:\\debris\\whatever.gv", "w") as gvfile:
+        gvfile.write(graphvizEntireThing(head))
+        gvfile.flush()
+    import csv
+    with open("E:\\debris\\fakeData.tsv", "wb") as tsvfile:
+        writer = csv.writer(tsvfile, dialect='excel-tab')
+        writer.writerow(["{0}:{1}".format(node.name, node.genName(4)) for node in nodes])
+        for x in range(200):
+            key = object()
+            writer.writerow([str(node.calculate(key)) for node in nodes])
+            if not x % 100:
+                print x, "rows done"
+        tsvfile.flush()

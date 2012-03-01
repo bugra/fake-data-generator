@@ -12,7 +12,7 @@ class add_n(IModelBehavior):
     IModelBehavior for an n-ary function that adds values together.
     '''
     arity=(2, None)
-    is_noise = False
+    isNoise = False
     def calculate(self, *args):
         return reduce(operator.add, args)
     def generate_name(self, *args):

@@ -9,9 +9,10 @@ from fakeDataGenerator.model import IModelBehavior
 
 class ln_1noise(IModelBehavior):
     arity=(1, 1)
-    isNoise = True
+    isNoise = False
     def calculate(self, value):
-        return math.log(value)
+        if value == 0: return 0 #wrong, but, eh, whatever. should probably just remove ln
+        return math.log(abs(value))
     def generate_name(self, name):
         return "ln " + name
 

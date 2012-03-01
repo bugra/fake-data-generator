@@ -13,6 +13,8 @@ class smallRatio_2(IModelBehavior):
         a, b = abs(a), abs(b)
         if a > b:
             a, b = b, a
+        if b == 0:
+            return 1
         return a / b
     def generate_name(self, a, b):
         return "|{0}:{1} ratio|".format(a, b)

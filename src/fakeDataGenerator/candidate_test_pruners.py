@@ -8,7 +8,7 @@ candidate implementations to whittle the triangulation graph
 down to the desired branching network.
 '''
 
-from pointsToOutwardDigraph import IPruneEdges
+from pointsToOutwardDigraph import (IPruneEdges, friendly_rename)
 import random
 import sys
 import os
@@ -91,37 +91,6 @@ class bigDelta(IPruneEdges):
         return graph
 
 CANDIDATE_PRUNERS = [nullPruner(), uniformThroughFour(), globalCutoff(), minimalistFraction(), bigDelta()]
-
-def friendly_rename(graph):
-    """
-    Builds a new weighted digraph, based on the provided weighted digraph (which isn't modified), 
-    which discards all names in favor of alphanumeric node identifiers.
-    """
-    nextLetter = ord('A')
-    nextNumber = 1
-    identifierMap = {}
-    newGraph = digraph()
-    
-    for node in graph.nodes():
-        if not graph.incidents(node):
-            identifier = chr(nextLetter)
-            nextLetter += 1
-        else:
-            identifier = str(nextNumber)
-            nextNumber += 1
-        newGraph.add_node(identifier, graph.node_attributes(node))
-        identifierMap[node] = identifier
-    
-    for edge in graph.edges():
-        weight = graph.edge_weight(edge)
-        label = graph.edge_label(edge)
-        src = identifierMap[edge[0]]
-        dest = identifierMap[edge[1]]
-        new_edge = (src, dest)
-        attrs = graph.edge_attributes(edge)
-        newGraph.add_edge(new_edge, weight, label, attrs)
-        
-    return newGraph
         
 def pruner_bakeoff(nPoints, nSeeds, r0, delta, spread, lumpage, outputNameRoot):
     from spiralPointDistribution import spiralPointDistribution

@@ -38,7 +38,7 @@ def graphFromTriangulation(triang, nSeeds):
             node_color = "red"
         else:
             node_color = "black"
-        graph.add_node(point, ("color", node_color))
+        graph.add_node(point, [("color", node_color)])
     
     for plex in triang.vertices:
         for src, dest in itertools.combinations(plex, 2):
@@ -60,18 +60,50 @@ def graphFromTriangulation(triang, nSeeds):
 def graphFromPoints(points, nSeeds):
     return graphFromTriangulation(Delaunay(ndarray(points)), nSeeds)
 
+def friendly_rename(graph):
+    """
+    Builds a new weighted digraph, based on the provided weighted digraph (which isn't modified), 
+    which discards all names in favor of alphanumeric node identifiers.
+    """
+    nextLetter = ord('A')
+    nextNumber = 1
+    identifierMap = {}
+    newGraph = digraph()
+    
+    for node in graph.nodes():
+        if not graph.incidents(node):
+            identifier = chr(nextLetter)
+            nextLetter += 1
+        else:
+            identifier = "@" + str(nextNumber)
+            nextNumber += 1
+        newGraph.add_node(identifier, graph.node_attributes(node))
+        identifierMap[node] = identifier
+    
+    for edge in graph.edges():
+        weight = graph.edge_weight(edge)
+        label = graph.edge_label(edge)
+        src = identifierMap[edge[0]]
+        dest = identifierMap[edge[1]]
+        new_edge = (src, dest)
+        attrs = graph.edge_attributes(edge)
+        newGraph.add_edge(new_edge, weight, label, attrs)
+        
+    return newGraph
+
 class IPruneEdges(IPlugin):
     def prune(self, graph):
         raise NotImplemented("IPruneEdges is a plugin interface. prune MUST be overridden!")
     
-    @classmethod
-    def implementations(cls, paths):
-        """Return an iterable of plugin-info for every locatable implementation of this interface.
-        """
-        manager = yapsy.PluginManager()
-        manager.setPluginPlaces(paths)
-        manager.setCategoriesFilter({
-            "PruneEdges" : IPruneEdges,                         
-            })
-        manager.collectPlugins()
-        return manager.getPluginsOfCategory("PruneEdges")
+
+def prunerImplementations(paths):
+    """Return an iterable of plugin-info for every locatable implementation of this interface.
+    """
+    manager = yapsy.PluginManager()
+    manager.setPluginPlaces(paths)
+    from fakeDataGenerator.pointsToOutwardDigraph import IPruneEdges as foreignPruneEdges
+    manager.setCategoriesFilter({
+        "PruneEdges" : foreignPruneEdges,                         
+        })
+    manager.collectPlugins()
+    return manager.getPluginsOfCategory("PruneEdges"), manager

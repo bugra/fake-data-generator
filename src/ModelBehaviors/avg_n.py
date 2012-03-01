@@ -4,11 +4,11 @@ Created on Feb 24, 2012
 @author: anorberg
 '''
 
+from __future__ import division
 from fakeDataGenerator.model import IModelBehavior
 from operator import add
-from __future__ import division
 
-EXPRESSIVE_NAME = True
+EXPRESSIVE_NAME = False
 
 class avg_n(IModelBehavior):
     '''
