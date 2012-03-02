@@ -6,6 +6,8 @@ Created on Feb 22, 2012
 Classes that implement the IPruneEdges plugin interface, as
 candidate implementations to whittle the triangulation graph
 down to the desired branching network.
+
+TODO: pull all of these out into proper plugins.
 '''
 
 from pointsToOutwardDigraph import (IPruneEdges, friendly_rename)
@@ -13,22 +15,30 @@ import random
 import sys
 import os
 import itertools
-from pygraph.classes.digraph import digraph
 
 #iPruneEdges requires a redef of prune(self, graph) where graph is a pygraph.digraph
 #Must modify the graph in place, and is expected to return it
 
 def incident_edges(graph, node):
+    """
+    A helper function to pull actual edges out of digraph's incident edge function,
+    as opposed to just neighbors (which digraph.incidents actually returns).
+    """
     neighbors = graph.incidents(node)
     return zip(neighbors, itertools.repeat(node, len(neighbors)))
 
 class nullPruner(IPruneEdges):
+    """A 'pruner' that removes no edges."""
     def prune(self, graph):
+        """Returns its argument unmodified."""
         return graph
 
 class uniformThroughFour(IPruneEdges):
-    #Randomly kick each edge down to an in-degree no greater than 4 but possibly as low as 1.
-    #Won't add edges, so nodes with an already-low in-degree are likely to be unaffected.
+    """
+    Randomly kick each edge down to an in-degree no greater than 4 but possibly as low as 1.
+    Won't add edges, so nodes with an already-low in-degree are likely to be unaffected.
+    Edges that already have an in-degree of 1 or 0 will of course be unaffected.
+    """
     def prune(self, graph):
         for node in graph.nodes():
             edges = incident_edges(graph, node)
@@ -39,6 +49,11 @@ class uniformThroughFour(IPruneEdges):
         return graph
     
 class globalCutoff(IPruneEdges):
+    """
+    Find a length such that removing every edge at that length or longer will not
+    result in any new nodes with an in-degree of zero, and remove all edges
+    at that length or longer.
+    """
     def prune(self, graph):
         must_keep = 0
         for node in graph.nodes():
@@ -93,6 +108,9 @@ class bigDelta(IPruneEdges):
 CANDIDATE_PRUNERS = [nullPruner(), uniformThroughFour(), globalCutoff(), minimalistFraction(), bigDelta()]
         
 def pruner_bakeoff(nPoints, nSeeds, r0, delta, spread, lumpage, outputNameRoot):
+    """
+    Generate a graph, then use all the CANDIDATE_PRUNERS to prune it, and save the results for later investigation.
+    """
     from spiralPointDistribution import spiralPointDistribution
     from pointsToOutwardDigraph import graphFromPoints
     #import matplotlib.pyplot as plot

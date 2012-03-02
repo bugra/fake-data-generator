@@ -55,11 +55,18 @@ class Node:
         return self
         
     def addEdge(self, destination):
+        """
+        Add an edge from this node to a specified node.
+        """
         destination._inputs.append(self)
         self._outputs.append(destination)
         return self
         
     def removeEdge(self, unDestination):
+        """
+        Remove an existing edge to a specified node. Returns False
+        if that edge does not already exist, otherwise returns True.
+        """
         try:
             self._outputs.remove(unDestination)
         except ValueError:
@@ -92,7 +99,12 @@ class Node:
     
     def genName(self, remainingRecursion, first = True):
         """Generates a friendly name based on what the operation is.
-        remainingRecursion is how deeply it should nest names; beyond that, symbolic IDs are used."""
+        remainingRecursion is how deeply it should nest names; beyond that, symbolic IDs are used.
+        genName calls itself recursively, and outside calls under most circumstances
+        should not tinker with the "First" flag, which modifies handling of 0-ary operations.
+        (0-ary operations are assumed to be 'generators' and referred to
+        symbolically at all levels other than the level defining only the operation.)
+        """
         if remainingRecursion <= 0:
             return self.name
         if not self._inputs:
@@ -118,18 +130,26 @@ class Node:
     
     def __str__(self):
         """
-        Returns a string representation of self.
+        Returns a descriptive string representation of self.
         """
         return "Node: " + self.name + "- from " + \
             ",".join((foo.name for foo in self._inputs)) + \
             "; into " + ",".join((foo.name for foo in self._outputs))
     
     def _updateReachableSingle(self):
+        """
+        Internal: used as part of the reachableSet calculation.
+        """
         self.reachableSet = set(self._outputs)
         for dest in self._outputs:
             self.reachableSet.update(dest.reachableSet)
     
     def updateReachable(self):
+        """
+        Re-scan for which nodes in the graph can be,
+        directly or indirectly, reached by this one. Used
+        as part of cycle-detection and break-detection algorithms.
+        """
         steps = 1
         self._updateReachableSingle()
         frontier = set(self._inputs)
@@ -145,6 +165,15 @@ class Node:
         
 
 def graphvizEntireThing(headNodes):
+    """
+    Calculates a GraphViz DOT representation of a graph and returns it as a string.
+    Uses the generated names to a recursion depth of graphviz_recursion_depth, which
+    can be written into to customize this behavior.
+    
+    Parameter is the 0-ary nodes of the graph; other nodes are found via search.
+    
+    Return value is a string containing the GraphViz representation.
+    """
     unprocessedNodes = set()
     reachedNodes = set()
     unprocessedNodes.update(headNodes)
@@ -168,7 +197,11 @@ def graphvizEntireThing(headNodes):
 
 
 class IModelBehavior(IPlugin):
-    #TODO: DOCUMENT!!!!!!
+    """
+    Plugin interface for behaviors the model can perform on values at each node in the graph.
+    Must be implemented and complemented by an appropriate yapsy-plugin info file for each
+    behavior operation. Includes calculation function, metadata, and friendly name generation function.
+    """
     @property
     def arity(self):
         """Must be a field-like that contains a 2-element sequence.
@@ -202,7 +235,10 @@ class IModelBehavior(IPlugin):
         raise NotImplemented("ModelBehaviorPlugin is abstract and all its plugin hooks must be overridden.")
     
 def modelBehaviorImplementations(paths):
-    """Return an iterable of plugin-info for every locatable implementation of this interface.
+    """
+    Return an iterable of plugin-info for every locatable implementation of this interface on a given path.
+    PyDev for Eclipse reports a compilation error here on a line that is actually legal Python due to
+    the schedule upon which module resolution and imports happen.
     """
     manager = PluginManager()
     manager.setPluginPlaces(paths)
@@ -214,7 +250,18 @@ def modelBehaviorImplementations(paths):
     manager.collectPlugins()
     return manager.getPluginsOfCategory("ModelBehavior")
     
-def extendFunctionLookup(listlist, nonElimFxns, newMax):
+def _extendFunctionLookup(listlist, nonElimFxns, newMax):
+    """
+    Internal function used during the construction of a model from a Pygraph.
+    Extends a lookup table of arity to candidate functions to include a new
+    arity.
+    
+    Modifies its first argument. Returns a new, shorter list of functions:
+    functions that may yet cover arities the list hasn't reached yet.
+    Functions with a maximum arity that has already been covered
+    will have been removed from this new list.
+    The second argument is not modified.
+    """
     if len(listlist) > newMax:
         dupe = [fxn for fxn in nonElimFxns]
         return dupe
@@ -236,14 +283,22 @@ def extendFunctionLookup(listlist, nonElimFxns, newMax):
     return remainingFxns
     
 class IdentityBehavior(IModelBehavior):
+    """
+    An implementation of IModelBehavior: the 1ary function that does nothing at all but return its argument.
+    """
     arity = (1, 1)
     is_noise = True
     def calculate(self, oneArg):
+        """Returns its argument."""
         return oneArg    
     def generate_name(self, oneName):
+        """Returns its argument, as the most concise description of the function."""
         return oneName
     
 def randomElement(ls):
+    """
+    Helper function. Draws a random element off a list, selected uniformly.
+    """
     dex = random.randint(0, len(ls)-1)
     return ls[dex]     
 
@@ -260,7 +315,7 @@ def workingModelFromPygraph(graph, fxns, bonus_identity = 0):
         noise.append(IdentityBehavior())
         
     arityTable = []
-    fxns = extendFunctionLookup(arityTable, fxns, DEFAULT_ARITY_MAX)
+    fxns = _extendFunctionLookup(arityTable, fxns, DEFAULT_ARITY_MAX)
     #dependency-order traversal
     cleared = set()
     zeroAry = [node for node in graph.nodes() if not graph.incidents(node)]
@@ -276,7 +331,7 @@ def workingModelFromPygraph(graph, fxns, bonus_identity = 0):
             arity = len(graph.incidents(forThisLabel))
             #NEXT UP: check arityTable length, grab random, raise if too short
             if len(arityTable) <= arity:
-                self.fxns = extendFunctionLookup(arityTable, self.fxns, arity)
+                self.fxns = _extendFunctionLookup(arityTable, self.fxns, arity)
             valids = arityTable[arity]
             if not valids:
                 raise ValueError("There exists a node for which no function exists- no {0}-ary functions: {1}".format(arity, forThisLabel))
@@ -304,6 +359,27 @@ def workingModelFromPygraph(graph, fxns, bonus_identity = 0):
 
 
 def buildRandomModel(nPoints, nSeeds, r0, delta, spread, lumpage, behaviorPaths, pruner, prunerPaths = None, bonus_identity = 3):
+    """
+    Builds a running, randomly-generated network model from the given parameters.
+    
+    Parameters:
+        nPoints - Number of nodes that should be in the resulting network, including seed points.
+        nSeeds - Number of nodes that are "seeds"- have an in-degree of 0. Must be at least 1.
+        r0 - A parameter that defines how strongly the first few nodes shape the graph. Large values will result in more separation between generators.
+        delta - A parameter that, in practice, defines how quickly distances grow. Leads to fewer edges as the graph goes further down.
+        spread - A parameter that affects how many "clusters" the graph will eventually wind up with.
+        lumpage - An integer that affects how aggressively points cluster. 0 will result in a graph of a random scattering of points, but
+                  otherwise low values result in stricter clusters.
+        behaviorPaths - A list of strings representing file paths that yapsy should search for IModelBehavior plugins.
+        pruner - either a pointsToOutwardDigraph.IPruneEdges to use to prune the graph to its final form,
+                 or the name of a plugin implementing IPruneEdges that can be loaded for the purpose.
+        prunerPaths - Ignored if pruner is not a string. If pruner is a string, that pruner, as the name of a Yapsy plugin,
+                      will be searched for in these paths.
+        bonus_identiy - Number of additional times to add the IdentityBehavior to the pool of IModelBehavior that
+                        is drawn from for noise functions. Used to increase the odds that a column will not be
+                        intentionally semi-randomized or modified before presentation to the column printer.
+                        Use 0 to keep standard equal probabilities.
+    """
     points = spiralPointDistribution.spiralPointDistribution(nPoints, nSeeds, r0, delta, spread, lumpage)
     rawCompleteGraph = pointsToOutwardDigraph.graphFromPoints(points, nSeeds)
     rawCompleteGraph = pointsToOutwardDigraph.friendly_rename(rawCompleteGraph)
@@ -324,6 +400,7 @@ def buildRandomModel(nPoints, nSeeds, r0, delta, spread, lumpage, behaviorPaths,
 
 
 if __name__ == "__main__":
+    """Crude, prototypical approach to fake data table generation."""
     #smoke test
     import candidate_test_pruners
     nodes, head = buildRandomModel(50, 4, 1, 0.5, 0.3, 2, ['U:\\mercurial\\fake-data-generator\\src\\ModelBehaviors'], candidate_test_pruners.bigDelta())
