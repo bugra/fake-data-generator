@@ -18,7 +18,7 @@ def shuffle(thisList):
     return thisList #yes, it's a mutator, but let's also return it
         
 def weldGraphViz(gvStrList):
-    joinme = [gvStrList[0]][:-1] #strip trailing }
+    joinme = [gvStrList[0][:-1]] #strip trailing }
     for x in range(1, len(gvStrList) - 1):
         joinme.append(gvStrList[x][8:-1]) #strip leading digraph{ and trailing }
     joinme.append(gvStrList[-1][8:]) #strip leading digraph{

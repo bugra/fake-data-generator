@@ -178,7 +178,7 @@ def graphvizEntireThing(headNodes):
     reachedNodes = set()
     unprocessedNodes.update(headNodes)
     reachedNodes.update(headNodes)
-    statements=["digraph Model{"]
+    statements=["digraph{"]
     
     while unprocessedNodes:
         nextNode = unprocessedNodes.pop()

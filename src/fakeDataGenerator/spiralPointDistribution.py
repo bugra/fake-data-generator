@@ -293,7 +293,7 @@ if __name__ == "__main__":
     """
     With --doctest flag, runs doctests.
     
-    Without, requires 7 arguments- nPoints, nSeeds, r0, delta, spread, lumpage, points;
+    Without, requires 6 arguments- nPoints, nSeeds, r0, delta, spread, lumpage, points;
     builds a distribution, then renders it via matplotlib (and draws its triangulation).
     Useful for experimenting with parameters to find out what gives correct graph shapes.
     """
