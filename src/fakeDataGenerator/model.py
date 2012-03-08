@@ -358,7 +358,7 @@ def workingModelFromPygraph(graph, fxns, bonus_identity = 0):
 
 
 
-def buildRandomModel(nPoints, nSeeds, r0, delta, spread, lumpage, behaviorPaths, pruner, prunerPaths = None, bonus_identity = 3):
+def buildRandomModel(nPoints, nSeeds, r0, delta, spread, lumpage, behaviorPaths, pruner, prunerPaths = None, name_prefix="", bonus_identity = 3):
     """
     Builds a running, randomly-generated network model from the given parameters.
     
@@ -375,6 +375,7 @@ def buildRandomModel(nPoints, nSeeds, r0, delta, spread, lumpage, behaviorPaths,
                  or the name of a plugin implementing IPruneEdges that can be loaded for the purpose.
         prunerPaths - Ignored if pruner is not a string. If pruner is a string, that pruner, as the name of a Yapsy plugin,
                       will be searched for in these paths.
+        namePrefix - Prefix for all node names (inserted after @ for non-generator nodes). Used when welding multiple graphs.
         bonus_identiy - Number of additional times to add the IdentityBehavior to the pool of IModelBehavior that
                         is drawn from for noise functions. Used to increase the odds that a column will not be
                         intentionally semi-randomized or modified before presentation to the column printer.
@@ -382,7 +383,7 @@ def buildRandomModel(nPoints, nSeeds, r0, delta, spread, lumpage, behaviorPaths,
     """
     points = spiralPointDistribution.spiralPointDistribution(nPoints, nSeeds, r0, delta, spread, lumpage)
     rawCompleteGraph = pointsToOutwardDigraph.graphFromPoints(points, nSeeds)
-    rawCompleteGraph = pointsToOutwardDigraph.friendly_rename(rawCompleteGraph)
+    rawCompleteGraph = pointsToOutwardDigraph.friendly_rename(rawCompleteGraph, name_prefix)
     if isinstance(pruner, str):
         #TODO: fix
         candidatePruners = pointsToOutwardDigraph.prunerImplementations(prunerPaths)

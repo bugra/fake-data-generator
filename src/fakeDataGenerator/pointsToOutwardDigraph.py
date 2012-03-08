@@ -92,7 +92,7 @@ def graphFromPoints(points, nSeeds):
     """
     return graphFromTriangulation(Delaunay(ndarray(points)), nSeeds)
 
-def friendly_rename(graph):
+def friendly_rename(graph, name_prefix=""):
     """
     Builds a new weighted digraph, based on the provided weighted digraph (which isn't modified), 
     which discards all names in favor of alphanumeric node identifiers.
@@ -104,10 +104,10 @@ def friendly_rename(graph):
     
     for node in graph.nodes():
         if not graph.incidents(node):
-            identifier = chr(nextLetter)
+            identifier = name_prefix + chr(nextLetter)
             nextLetter += 1
         else:
-            identifier = "@" + str(nextNumber)
+            identifier = "@" + name_prefix + str(nextNumber)
             nextNumber += 1
         newGraph.add_node(identifier, graph.node_attributes(node))
         identifierMap[node] = identifier
