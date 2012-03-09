@@ -48,7 +48,7 @@ if __name__ == '__main__':
                                              settings.pruner,
                                              None,
                                              chr(prefixChar),
-                                             3)
+                                             settings.addIdentity)
         graphvizModels.append(model.graphvizEntireThing(head))
         nodeBucket.extend(nodes)
     
@@ -60,10 +60,19 @@ if __name__ == '__main__':
     shuffle(pickedColumns)
     
     with open(settings.outputRoot + ".txt", "w") as datafile:
-        writer = csv.writer(datafile, dialect='excel-tab')
-        writer.writerow(["{0}:{1}".format(node.name, node.genName(settings.tsvRecursion)) for node in pickedColumns])
-        for x in range(settings.samples):
-            writer.writerow([str(node.calculate(x)) for node in pickedColumns])
-            if not x % 100:
-                print x, "rows written"
-        datafile.flush()
+        with open(settings.outputRoot + ".noisy.txt", "w") as noisyfile:
+            cleanWriter = csv.writer(datafile, dialect='excel-tab')
+            dirtyWriter = csv.writer(noisyfile, dialect='excel-tab')
+            cleanWriter.writerow(["{0}:{1}".format(node.name, node.genName(settings.tsvRecursion)) for node in pickedColumns])
+            dirtyWriter.writeRow(["{0}:{1} (as {2})".format(
+                                                    node.name,
+                                                    node.genName(settings.tsvRecursion),
+                                                    node.noiseFxn.generate_name(node.name))
+                                  for node in pickedColumns])
+            for x in range(settings.samples):
+                cleanWriter.writerow([str(node.calculate(x)) for node in pickedColumns])
+                dirtyWriter.writeRow([str(node.columnValue(x) for node in pickedColumns)])
+                if not x % 100:
+                    print x, "rows written"
+            datafile.flush()
+            noisyfile.flush()

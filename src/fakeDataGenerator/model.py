@@ -347,8 +347,8 @@ def workingModelFromPygraph(graph, fxns, bonus_identity = 0):
         cleared.add(nextNode)
         foo = Node((labelsToModelNodes[incoming] for incoming in graph.incidents(nextNode)),
                    nextNode,
-                   drawAppropriateFxn(nextNode),
-                   randomElement(noise))
+                   drawAppropriateFxn(nextNode).__class__(), #new instance, so init can be useful
+                   randomElement(noise).__class__())
         labelsToModelNodes[nextNode] = foo
         for child in graph.neighbors(nextNode):
             if(cleared.issuperset(graph.incidents(child))):
@@ -410,11 +410,11 @@ if __name__ == "__main__":
         gvfile.flush()
     import csv
     with open("E:\\debris\\fakeData.tsv", "wb") as tsvfile:
-        writer = csv.writer(tsvfile, dialect='excel-tab')
-        writer.writerow(["{0}:{1}".format(node.name, node.genName(4)) for node in nodes])
+        cleanWriter = csv.writer(tsvfile, dialect='excel-tab')
+        cleanWriter.writerow(["{0}:{1}".format(node.name, node.genName(4)) for node in nodes])
         for x in range(200):
             key = object()
-            writer.writerow([str(node.calculate(key)) for node in nodes])
+            cleanWriter.writerow([str(node.calculate(key)) for node in nodes])
             if not x % 100:
                 print x, "rows done"
         tsvfile.flush()

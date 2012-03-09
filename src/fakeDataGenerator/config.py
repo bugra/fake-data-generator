@@ -19,15 +19,25 @@ BIGDELTA = candidate_test_pruners.bigDelta()
 PRUNER_LUT={
                 "null":NULL,
                 "nullpruner":NULL,
+                "n":NULL,
                 "uniform":UNIFOUR,
                 "uniformthroughfour":UNIFOUR,
+                "u":UNIFOUR,
                 "minfrac":MINFRAC,
                 "minimalist":MINFRAC,
+                "m":MINFRAC,
                 "fraction":MINFRAC,
                 "fractional":MINFRAC,
                 "minimalistfraction":MINFRAC,
+                "f":MINFRAC,
+                "globalcutoff":GLOBALCUT,
+                "global":GLOBALCUT,
+                "g":GLOBALCUT,
+                "cutoff":GLOBALCUT,
+                "globalcut":GLOBALCUT,
                 "delta":BIGDELTA,
-                "bigdelta":BIGDELTA
+                "bigdelta":BIGDELTA,
+                "d":BIGDELTA
             }
 
 class Config(object):
@@ -46,6 +56,7 @@ class Config(object):
     behaviorPaths = [os.path.join(os.path.dirname(__file__), "..", "ModelBehaviors")]
     pruner = candidate_test_pruners.bigDelta()
     samples = 500
+    addIdentity = 3
 
     def __init__(self, relevant_argv=None):
         '''
@@ -66,6 +77,7 @@ class Config(object):
         parser.add_option("-x", "--pruner", dest="pruner", help="Name of graph pruning algorithm to use")
         parser.add_option("-m", "--samples", dest="samples", type="int", help="Number of rows of data to output")
         parser.add_option("-o", "--output", dest="outputRoot", help="Output file name without extension; .gv or .txt will be appended")
+        parser.add_option("-u", "--unnoisiness", dest="unNoisiness", help="Number of times to add the identity function to the pool of noise functions")
         
         (options, args) = parser.parse_args(relevant_argv)
         
@@ -103,6 +115,9 @@ class Config(object):
         
         if options.outputRoot:
             self.outputRoot = options.outputRoot
+            
+        if options.unNoisiness:
+            self.addIdentity = options.unNoisiness
     def _parse_config_file(self, filePath):
         """
         Use a ConfigParser to load settings.
@@ -135,7 +150,7 @@ class Config(object):
         
         self.behaviorPaths = parser.get("Model", "Behaviors").split(os.path.pathsep)
         self.pruner = PRUNER_LUT[parser.get("Model", "Pruner").lower()]
-        #TODO: special resolution against canned pruners for now
+        self.addIdentity = parser.getint("Model", "UnNoisiness")
         
         self.nGraphs = parser.getint("Generation", "Graphs")
         self.graphSize = parser.getint("Generation", "GraphSize")
