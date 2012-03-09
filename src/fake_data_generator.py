@@ -71,7 +71,7 @@ if __name__ == '__main__':
                                   for node in pickedColumns])
             for x in range(settings.samples):
                 cleanWriter.writerow([str(node.calculate(x)) for node in pickedColumns])
-                dirtyWriter.writerow([str(node.columnValue(x) for node in pickedColumns)])
+                dirtyWriter.writerow([str(node.columnValue(x)) for node in pickedColumns])
                 if not x % 100:
                     print x, "rows written"
             datafile.flush()
