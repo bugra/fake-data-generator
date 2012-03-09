@@ -1,0 +1,11 @@
+
+[Core]
+name = int_1
+module = int_1
+
+[Documentation]
+website = http://www.systemsbiology.org
+version = 0.0.1
+description = IntCoerce plugin for a computation in the Fake Data Generator. Form letter description not updated.
+author = Tom C. Robinson
+

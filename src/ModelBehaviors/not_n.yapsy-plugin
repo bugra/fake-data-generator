@@ -1,0 +1,11 @@
+
+[Core]
+name = not_n
+module = not_n
+
+[Documentation]
+website = http://www.systemsbiology.org
+version = 0.0.1
+description = NotValues plugin for a computation in the Fake Data Generator. Form letter description not updated.
+author = Tom C. Robinson
+

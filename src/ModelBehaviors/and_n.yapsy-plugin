@@ -1,0 +1,11 @@
+
+[Core]
+name = and_n
+module = and_n
+
+[Documentation]
+website = http://www.systemsbiology.org
+version = 0.0.1
+description = AndValues plugin for a computation in the Fake Data Generator. Form letter description not updated.
+author = Tom C. Robinson
+

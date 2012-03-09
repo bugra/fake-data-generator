@@ -1,0 +1,11 @@
+
+[Core]
+name = multiplex_1
+module = multiplex_1
+
+[Documentation]
+website = http://www.systemsbiology.org
+version = 0.0.1
+description = Multiplex plugin for a computation in the Fake Data Generator. Form letter description not updated.
+author = Tom C. Robinson
+
