@@ -64,14 +64,14 @@ if __name__ == '__main__':
             cleanWriter = csv.writer(datafile, dialect='excel-tab')
             dirtyWriter = csv.writer(noisyfile, dialect='excel-tab')
             cleanWriter.writerow(["{0}:{1}".format(node.name, node.genName(settings.tsvRecursion)) for node in pickedColumns])
-            dirtyWriter.writeRow(["{0}:{1} (as {2})".format(
+            dirtyWriter.writerow(["{0}:{1} (as {2})".format(
                                                     node.name,
                                                     node.genName(settings.tsvRecursion),
                                                     node.noiseFxn.generate_name(node.name))
                                   for node in pickedColumns])
             for x in range(settings.samples):
                 cleanWriter.writerow([str(node.calculate(x)) for node in pickedColumns])
-                dirtyWriter.writeRow([str(node.columnValue(x) for node in pickedColumns)])
+                dirtyWriter.writerow([str(node.columnValue(x) for node in pickedColumns)])
                 if not x % 100:
                     print x, "rows written"
             datafile.flush()
