@@ -14,10 +14,10 @@ class AndValues(IModelBehavior):
     arity=(2,None)
     isNoise = False
     def calculate(self, *values):
-        ret = int(values[0]*100000.0)
+        ret = int(values[0]*131072.0) #power of 2 rounds ints cleanly
         for s in values[1:]:
-            ret &= int(s*100000.0)
-        return ret/100000.0
+            ret &= int(s*131072.0)
+        return ret/131072.0
     def generate_name(self, *names):
         return 'AND({0})'.format(", ".join(names))
 

@@ -19,5 +19,5 @@ class Translate(IModelBehavior):
     def calculate(self, value):
         return self.translationValue + value
     def generate_name(self, name):
-        return 'translate(%s,%.6f)' % (name, self.translationValue)
+        return '%s + %.6f' % (name, self.translationValue)
 

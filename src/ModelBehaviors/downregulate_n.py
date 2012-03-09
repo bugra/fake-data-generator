@@ -4,13 +4,13 @@ Created on Feb 27, 2012
 
 @author: trobinso
 
-Plugin IModelBehavior that implements the NOT operator.
+Plugin IModelBehavior that implements something similar to conflicting upregulation/downregulation factors.
 
 """
 
 from fakeDataGenerator.model import IModelBehavior
 
-class NotValues(IModelBehavior):
+class Downregulate(IModelBehavior):
     arity=(2,None)
     isNoise = False
     def calculate(self, *values):
@@ -22,5 +22,5 @@ class NotValues(IModelBehavior):
             ret -= abs(s)
         return ret * [1.0,-1.0][negative]
     def generate_name(self, *names):
-        return 'NOT({0})'.format(", ".join(names))
+        return '{0} downregulated by: {1}'.format(names[0], ", ".join(names[1:]))
 

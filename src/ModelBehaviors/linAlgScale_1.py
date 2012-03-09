@@ -18,5 +18,5 @@ class Scale(IModelBehavior):
     def calculate(self, value):
         return self.scaleValue * value
     def generate_name(self, name):
-        return 'scale(%s,%.6f)' % (name, self.scaleValue)
+        return '%s + %.6f' % (name, self.scaleValue)
 
