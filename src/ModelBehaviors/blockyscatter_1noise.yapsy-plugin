@@ -1,7 +1,7 @@
 
 [Core]
-name = multiplex_1
-module = multiplex_1
+name = blockyscatter_1noise
+module = blockyscatter_1noise
 
 [Documentation]
 website = http://www.systemsbiology.org

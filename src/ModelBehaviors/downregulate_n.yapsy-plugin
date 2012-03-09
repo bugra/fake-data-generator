@@ -1,7 +1,7 @@
 
 [Core]
-name = not_n
-module = not_n
+name = downregulate_n
+module = downregulate_n
 
 [Documentation]
 website = http://www.systemsbiology.org
