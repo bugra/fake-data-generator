@@ -7,15 +7,10 @@ from __future__ import division
 
 from fakeDataGenerator import model
 from fakeDataGenerator import config
+from random import shuffle
 import csv
 import random
 
-
-def shuffle(thisList):
-    for x in range(len(thisList)-1):
-        dex = random.randint(x, len(thisList) - 1)
-        thisList[x], thisList[dex] = thisList[dex], thisList[x]
-    return thisList #yes, it's a mutator, but let's also return it
         
 def weldGraphViz(gvStrList):
     if len(gvStrList) < 2:
