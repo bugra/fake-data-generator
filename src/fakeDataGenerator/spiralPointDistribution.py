@@ -219,7 +219,7 @@ def lumpyTheta(cartesianPoints, n, r, theta):
     return newTheta
 
 
-def spiralPointDistribution(nPoints, nSeeds, r0, delta, spread, lumpage = 2):
+def spiralPointDistribution(nPoints, nSeeds, r0, delta, spread, z = 2):
     """
     Distribute points in a cluster-y, branching, radial layout designed to create a graph
     shaped like a plausible interaction network after the Delaunay triangulation is
@@ -235,10 +235,10 @@ def spiralPointDistribution(nPoints, nSeeds, r0, delta, spread, lumpage = 2):
        are used internally, but turns are easier to reason about here since the point
        at which points can "come back around" is of specific concern.)
     2. The nearest P points (in Cartesian space, by Euclidean distance) are determined.
-       (P = parameter "lumpage". this may be 0.) The theta of these points along with
+       (P = parameter "z". this may be 0.) The theta of these points along with
        the just-calculated random theta is calculated. This is the new theta at which
        the point is actually plotted. This "neighbor-seeking" behavior causes clustering
-       behavior with a branch-y shape. Higher values of "lumpage" cause points to
+       behavior with a branch-y shape. Higher values of "z" cause points to
        cluster more since the random component has lower weight, but clusters are
        broader since more points are used to sample a cluster. Experiment to find
        the right value, but experimentation shows 2 to work pretty well.
@@ -263,7 +263,7 @@ def spiralPointDistribution(nPoints, nSeeds, r0, delta, spread, lumpage = 2):
                   This affects the shape of the graph and how far apart clusters tend to be,
                   and thus how likely clusters are to merge or grow together. Parameter
                   must be experimented with.
-        lumpage - Number of points used to calculate clustering effects. Large values result
+        z       - Number of points used to calculate clustering effects. Large values result
                   in stronger effects of clusters, but clusters are blurrier due to increased
                   influence of nearby clusters near the edges. Small values result in more chaos,
                   but clusters grow together less. 0 results in a completely random point distribution.
@@ -282,7 +282,7 @@ def spiralPointDistribution(nPoints, nSeeds, r0, delta, spread, lumpage = 2):
     while len(points) < nPoints:
         lastR += delta
         lastTheta = normalizeAngleRadians(lastTheta + radiansFromTurns(random.uniform(0,spread)))
-        lastTheta = lumpyTheta(points, lumpage, lastR, lastTheta)
+        lastTheta = lumpyTheta(points, z, lastR, lastTheta)
         points.append(cartesianFromPolar(lastR, lastTheta))
     
     return points

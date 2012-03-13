@@ -10,9 +10,15 @@ import random
 class randGauss_gen(IModelBehavior):
     arity = (0, 0)
     isNoise = False
-    MEAN = 0.5
-    STDDEV = 0.3
+    STDDEV_MEAN = 0.5
+    MEAN_MEAN = 0
+    MEAN_STDDEV = 0.2
+    STDDEV_STDDEV = 0.4
+    
+    def __init__(self):
+        self.mean = random.gauss(self.MEAN_MEAN, self.STDDEV_MEAN)
+        self.stddev = abs(random.gauss(self.MEAN_STDDEV, self.STDDEV_STDDEV))
     def calculate(self):
-        return random.gauss(self.MEAN, self.STDDEV)
+        return random.gauss(self.mean, self.stddev)
     def generate_name(self):
-        return "gaussian_random(mean={0}, stddev={1})".format(self.MEAN, self.STDDEV)
+        return "gaussian_random(mean={0}, stddev={1})".format(self.mean, self.stddev)
