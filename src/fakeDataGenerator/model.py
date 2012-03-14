@@ -287,7 +287,7 @@ class IdentityBehavior(IModelBehavior):
     An implementation of IModelBehavior: the 1ary function that does nothing at all but return its argument.
     """
     arity = (1, 1)
-    is_noise = True
+    isNoise = True
     def calculate(self, oneArg):
         """Returns its argument."""
         return oneArg    
