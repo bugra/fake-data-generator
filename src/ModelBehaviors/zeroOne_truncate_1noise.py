@@ -5,6 +5,7 @@ Created on Feb 24, 2012
 '''
 
 from fakeDataGenerator.model import IModelBehavior
+import math
 
 class zeroOne_truncate_1noise(IModelBehavior):
     arity = (1, 1)
@@ -37,6 +38,8 @@ class zeroOne_truncate_1noise(IModelBehavior):
         
         This will not produce a negative zero.
         """
+        if math.isnan(value) or math.isinf(value):
+            return value
         value = abs(value)
         value -= float(int(value))
         return value
