@@ -54,8 +54,8 @@ if __name__ == '__main__':
     pickedColumns = [foo for foo in nodeBucket if random.random() <= settings.tsvColRate]
     shuffle(pickedColumns)
     
-    with open(settings.outputRoot + ".txt", "w") as datafile:
-        with open(settings.outputRoot + ".noisy.txt", "w") as noisyfile:
+    with open(settings.outputRoot + ".txt", "wb") as datafile:
+        with open(settings.outputRoot + ".noisy.txt", "wb") as noisyfile:
             cleanWriter = csv.writer(datafile, dialect='excel-tab')
             dirtyWriter = csv.writer(noisyfile, dialect='excel-tab')
             cleanWriter.writerow(["{0}:{1}".format(node.name, node.genName(settings.tsvRecursion)) for node in pickedColumns])

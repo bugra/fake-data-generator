@@ -66,6 +66,7 @@ class Config(object):
             relevant_argv = sys.argv[1:]
         
         parser = optparse.OptionParser()
+        parser.add_option("-?", dest="stopAndHelp", action="store_true", help="View this help")
         parser.add_option("-c", "--config", dest="configFile", help="Load a configuration file")
         parser.add_option("-g", "--graphs", dest="graphs", type="int", help="Number of separate graphs to generate")
         parser.add_option("-n", "--graphSize", dest="graphSize", type="int", help="Number of nodes per graph (including seeds)")
@@ -80,6 +81,10 @@ class Config(object):
         parser.add_option("-u", "--unnoisiness", dest="unNoisiness", help="Number of times to add the identity function to the pool of noise functions")
         
         (options, args) = parser.parse_args(relevant_argv)
+        
+        if options.stopAndHelp:
+            parser.print_help()
+            sys.exit()
         
         if options.configFile:
             self._parse_config_file(options.configFile)
@@ -128,7 +133,7 @@ class Config(object):
                     "PickRate":self.tsvColRate,
                     "TsvRecursion":self.tsvRecursion,
                     "GraphvizRecursion":self.gvRecursion,
-                    "Behaviors":self.behaviorPaths,
+                    "Behaviors":os.path.pathsep.join(self.behaviorPaths),
                     "Pruner":self.pruner,
                     "Graphs":self.nGraphs,
                     "GraphSize":self.graphSize,
