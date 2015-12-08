@@ -1,0 +1,3 @@
+Sadly, this has to come last. Let's pretend there exists such a thing as a Config Dict that gets passed around and is a `dict` from `string` to `string` and the keys are the configuration property names you want to have, and the string is something you can parse for configuration.
+
+**Document here** what the config needs to contain, and then we'll write some file format that represents that, some sort of command line overrides, and a loader.

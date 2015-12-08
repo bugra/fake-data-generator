@@ -1,0 +1,5 @@
+# Introduction #
+
+Any randomized system has some (extremely small) chance of wild malfunction. It is possible that a model could inadvertently produce a wildly non-characteristic data set. For this reason, models themselves must be re-importable; multiple data sets built off one single model can be used to confirm the results of an algorithm, or determine if it is or is not consistent compared to other similar algorithms. Fake-data-generator runs in one pass, so saving and loading entire models is the easiest way to generate additional datasets.
+
+Unfortunately, this will turn out to be much more complex to develop than previously thought. Objects, function pointers, and other code-like Python objects are pickled by reference, not by content. Our unpickling system will have to take special care to make sure that all classes are available again and already loaded by the time the pickle resolves.
